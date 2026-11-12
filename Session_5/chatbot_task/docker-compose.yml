@@ -11,10 +11,10 @@ services:
       - "5678:5678"
     container_name: chatbot
     environment:
-      - INDEX_DATA=0
+      - INDEX_DATA=1
       - MODEL_NAME=llama3.2:1B
-      - EMBEDDING_MODEL=bge-m3
-      - PULL_EMBEDDING_MODEL=0
+      - EMBEDDING_MODEL=all-minilm
+      - PULL_EMBEDDING_MODEL=1
       - OLLAMA_HOST_NAME=ollama
       - CHROMA_HOST_NAME=chroma
       - PDF_DOC_PATH=/data/src/AI_Book.pdf
