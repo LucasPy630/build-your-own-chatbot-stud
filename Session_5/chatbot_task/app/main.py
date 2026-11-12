@@ -7,6 +7,7 @@ from dataclasses import dataclass
 class ChatMessage:
     role: str
     content: str
+    sources: list = None
 from src.chatbot import CustomChatBot
 import os
 
@@ -42,7 +43,15 @@ if len(st.session_state["messages"]) == 0 or st.sidebar.button("Clear message hi
 
 # Display chat messages
 for msg in st.session_state.messages:
-    st.chat_message(msg.role).write(msg.content)
+    with st.chat_message(msg.role):
+        st.write(msg.content)
+        # Wenn Quellen existieren, in einem aufklappbaren Menü anzeigen
+        if msg.sources:
+            with st.expander("📄 Verwendete Quellen anzeigen"):
+                for i, source in enumerate(msg.sources):
+                    # Text aus LangChain-Dokumenten extrahieren
+                    content = source.page_content if hasattr(source, "page_content") else str(source)
+                    st.info(f"**Quelle {i+1}:**\n\n{content}")
 
 # Handle user input
 if user_query := st.chat_input(placeholder="Ask me anything!"):
@@ -63,10 +72,26 @@ if user_query := st.chat_input(placeholder="Ask me anything!"):
             container.error("An error occurred while processing your request.")
 
         # Store assistant response in session state
-        if answer:
-            logger.info(f"Write assistant message in session state {user_query}")
-            st.session_state.messages.append(ChatMessage(role="assistant", content=answer))
+    if answer:
+        logger.info(f"Write assistant message in session state {user_query}")
+        
+        # Quellen aus der Datenbank abrufen
+        retrieved_sources = []
+        try:
+            retrieved_sources = st.session_state["bot"].vector_db.similarity_search(user_query, k=3)
+        except Exception as e:
+            logger.warning(f"Could not fetch sources: {e}")
 
+        # Nachricht inkl. Quellen im Verlauf speichern
+        st.session_state.messages.append(ChatMessage(role="assistant", content=answer, sources=retrieved_sources))
+        
+        # Quellen sofort unter der aktuellen Antwort anzeigen
+        if retrieved_sources:
+            with st.expander("📄 Verwendete Quellen anzeigen"):
+                for i, source in enumerate(retrieved_sources):
+                    content = source.page_content if hasattr(source, "page_content") else str(source)
+                    st.info(f"**Quelle {i+1}:**\n\n{content}")
+                    
     with st.chat_message("assistant"):
         with st.spinner("Searching for information in your documents and generation response..."):
             loop = asyncio.new_event_loop()
